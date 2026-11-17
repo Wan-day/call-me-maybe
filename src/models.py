@@ -42,3 +42,15 @@ class PromptItem(BaseModel):
     """
 
     prompt: str
+
+
+class ParsedInput(BaseModel):
+    """Everything read from the input files.
+
+    Attributes:
+        functions: The functions the LLM may call.
+        prompts: The requests to translate, in file order.
+    """
+
+    functions: list[FunctionDefinition]
+    prompts: list[PromptItem]
