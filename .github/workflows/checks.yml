@@ -1,0 +1,38 @@
+name: checks
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          # Lowest version allowed by the subject and pyproject.toml.
+          python-version: "3.10"
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: flake8
+        run: uv run flake8 .
+
+      - name: mypy
+        run: >
+          uv run mypy . --warn-return-any --warn-unused-ignores
+          --ignore-missing-imports --disallow-untyped-defs
+          --check-untyped-defs
+
+      - name: pytest
+        run: uv run pytest

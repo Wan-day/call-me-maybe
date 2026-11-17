@@ -1,0 +1,9 @@
+[flake8]
+# llm_sdk/ is provided by the subject and must not be modified.
+exclude =
+    .git,
+    .venv,
+    __pycache__,
+    .mypy_cache,
+    .pytest_cache,
+    llm_sdk

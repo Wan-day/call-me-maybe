@@ -24,6 +24,14 @@ package = false
 [tool.uv.sources]
 llm-sdk = { path = "llm_sdk", editable = true }
 
+[tool.mypy]
+# llm_sdk/ is provided by the subject and must not be modified.
+exclude = ["^llm_sdk/", "^\\.venv/"]
+
+[[tool.mypy.overrides]]
+module = ["llm_sdk", "llm_sdk.*"]
+ignore_errors = true
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
