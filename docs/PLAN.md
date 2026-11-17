@@ -2,7 +2,7 @@
 
 Sources: `en.subject.pdf` (version 1.5) and `CLAUDE.md`. Where they differ, the subject wins.
 
-Legend: `[x]` done, `[ ]` open. Steps marked **[core]** are written by the student; the agent reviews, explains, and tests them (CLAUDE.md, "Working with the student").
+Legend: `[x]` done, `[ ]` open. Every code step follows the spec-and-tests workflow: the student writes the signatures, docstrings, and tests; the agent implements them and explains the result (CLAUDE.md, "Working with the student"). Steps marked **[core]** follow it most strictly and get the most detailed review, because evaluators dig into them.
 
 ## Workflow rules
 
@@ -25,7 +25,7 @@ Each decision must be settled before the step it blocks.
 7. **Subject wording for the tokenizer bonus.** The subject names only the vocab file. BPE also needs the merges file via `get_path_to_merges_file()`, which is a public SDK method. Confirm this is acceptable. Blocks 6.5.
 8. **Error catching.** The pipeline catches `DecodeError` per prompt (recovery). Everything else is caught once in `__main__`. Confirm this exception is acceptable. Blocks 6.3.
 9. **Chat template.** Check whether `<|im_start|>` and `<|im_end|>` encode to single ids with the SDK `encode`. If not, a plain-text prompt is simpler. Blocks 2.3.
-10. **CI install cost.** `uv sync` installs torch and transformers through `llm-sdk` on every run. Measure the install time with the cache, then decide whether it is acceptable. Blocks 0.5.
+10. **CI install cost.** Decided (2026-11-17): acceptable, keep the full `uv sync --locked`. Measured on GitHub Actions: torch download 528.9 MiB in about 15 s, 72 packages prepared in 16.3 s, whole job 31–50 s. The limit is 1 minute per CI run; optimize the install (for example a lint-only dependency set) only if runs exceed it. Was blocking 0.5.
 
 ## Design rules for the mandatory phase
 
@@ -46,11 +46,11 @@ Build these in the mandatory phase so the bonuses need no rewrite:
 - [x] **0.2 Parser.** `src/parser.py`, `src/errors.py`, `tests/test_parser.py`. Frozen pydantic `Parser` with `load()`. Failures raise `InputFileError` with one message per problem. Done: tests pass.
 - [x] **0.3 Project config.** `pyproject.toml`: uv, dev group (pytest, flake8, mypy), flake8 and mypy exclude `llm_sdk/` and `.venv/`. Done: `uv sync` works.
 - [x] **0.4 CI.** `.github/workflows/checks.yml`: flake8, mypy with the subject flags, and pytest on PRs to `main`. Done: workflow runs on PRs.
-- [ ] **0.5 Lock file.** Commit `uv.lock` (generated, never edited by hand). Change CI to `uv sync --locked` so it fails when the lock is stale. Record the CI install time (open decision 10). Done: CI is green on a PR with the lock committed.
+- [x] **0.5 Lock file.** Commit `uv.lock` (generated, never edited by hand). Change CI to `uv sync --locked` so it fails when the lock is stale. Record the CI install time (open decision 10). Done: CI is green on a PR with the lock committed.
 
 ## Phase 1: Skeleton (mandatory)
 
-- [ ] **1.1 Makefile.** `Makefile`. Rules:
+- [x] **1.1 Makefile.** `Makefile`. Rules:
   - `install`: `uv sync`
   - `run`: `uv run python -m src`
   - `debug`: `uv run python -m pdb -m src`
