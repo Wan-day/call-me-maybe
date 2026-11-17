@@ -1,0 +1,35 @@
+# Claude Code
+CLAUDE.md
+.claude/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Program output (generated during peer review)
+data/output/
+output/
+
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Packaging and build artifacts
+build/
+dist/
+*.egg-info/
+
+# Editors and OS files
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Secrets
+.env
