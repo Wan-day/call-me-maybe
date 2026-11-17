@@ -1,0 +1,29 @@
+[project]
+name = "call-me-maybe"
+version = "0.1.0"
+description = "Translate natural-language prompts into function calls with constrained decoding."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "llm-sdk",
+    "numpy>=1.26",
+    "pydantic>=2.7",
+]
+
+[dependency-groups]
+dev = [
+    "flake8>=7.0",
+    "mypy>=1.10",
+    "pytest>=8.0",
+]
+
+[tool.uv]
+# src/ is run with `python -m src`, not installed as a package.
+package = false
+
+[tool.uv.sources]
+llm-sdk = { path = "llm_sdk", editable = true }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
