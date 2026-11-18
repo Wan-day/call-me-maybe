@@ -60,7 +60,7 @@ Build these in the mandatory phase so the bonuses need no rewrite:
 
   Done when: `make lint` passes on the current code and `make clean` removes the caches.
 
-- [ ] **1.2 CLI entry point.** `src/__main__.py`, `src/errors.py`, `tests/test_main.py`. `argparse` with `--functions_definition`, `--input`, `--output`, using the subject defaults. Add the `CallMeMaybeError` base class. `main()` catches it once, prints the message to stderr, and exits with status 1. Done when: `uv run python -m src --help` lists the options, and a missing file prints one line with no traceback (tested).
+- [x] **1.2 CLI entry point.** `src/__main__.py`, `tests/test_main.py`. `argparse` with `--functions_definition`, `--input`, `--output`, using the subject defaults. `main()` catches `InputFileError`, prints it to stderr with `[CRITICAL ERROR] ` on every line, and returns 1. Non-critical errors (later, per prompt) use `[ERROR] ` and the run continues with status 0. argparse exits on its own for `--help` (0) and bad usage (2). The `CallMeMaybeError` base class was not added; decide in 6.3 whether later errors share one. Done when: `uv run python -m src --help` lists the options, and a missing file prints one line with no traceback (tested).
 
 - [ ] **1.3 Input edge cases.** `tests/test_parser.py`. First check which cases already exist, then add the gaps: missing file, directory, empty file, invalid JSON, empty function list, empty prompt list, wrong types, duplicate names, non-UTF-8 bytes. Done when: each case has a test and the parser raises only `InputFileError`.
 
