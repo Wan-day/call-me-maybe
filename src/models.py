@@ -1,11 +1,17 @@
 """Pydantic models describing the program's input data."""
 
-from typing import Literal
+import re
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 ParameterType = Literal["number", "integer", "string", "boolean"]
 """JSON types a function parameter or return value can have."""
+
+ParameterName = Annotated[str, Field(min_length=1)]
+"""A parameter name: any text except the empty string."""
+
+_IDENTIFIER = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 
 
 class ParameterSpec(BaseModel):
@@ -22,16 +28,41 @@ class FunctionDefinition(BaseModel):
     """One function the LLM is allowed to call.
 
     Attributes:
-        name: Unique function name, e.g. ``fn_add_numbers``.
+        name: Unique function name, e.g. ``fn_add_numbers``. Only ASCII
+            letters, digits and underscores, not starting with a digit.
         description: What the function does, shown to the LLM.
-        parameters: Argument names mapped to their type description.
+        parameters: Argument names (never empty) mapped to their type
+            description.
         returns: Type description of the return value.
     """
 
-    name: str = Field(min_length=1)
+    name: str
     description: str
-    parameters: dict[str, ParameterSpec]
+    parameters: dict[ParameterName, ParameterSpec]
     returns: ParameterSpec
+
+    @field_validator("name")
+    @classmethod
+    def _check_name(cls, name: str) -> str:
+        """Reject names that are not identifier-style.
+
+        Args:
+            name: The function name from the input file.
+
+        Returns:
+            The name, unchanged.
+
+        Raises:
+            ValueError: If the name is empty or contains other characters
+                than ASCII letters, digits and underscores, or starts
+                with a digit.
+        """
+        if not _IDENTIFIER.fullmatch(name):
+            raise ValueError(
+                "must contain only letters, digits and underscores, "
+                "and must not start with a digit"
+            )
+        return name
 
 
 class PromptItem(BaseModel):
@@ -39,9 +70,28 @@ class PromptItem(BaseModel):
 
     Attributes:
         prompt: The request text, e.g. ``"What is the sum of 2 and 3?"``.
+            Never empty or only whitespace.
     """
 
     prompt: str
+
+    @field_validator("prompt")
+    @classmethod
+    def _check_prompt(cls, prompt: str) -> str:
+        """Reject prompts with nothing to translate.
+
+        Args:
+            prompt: The prompt text from the input file.
+
+        Returns:
+            The prompt, unchanged.
+
+        Raises:
+            ValueError: If the prompt is empty or only whitespace.
+        """
+        if not prompt.strip():
+            raise ValueError("must not be empty or only whitespace")
+        return prompt
 
 
 class ParsedInput(BaseModel):

@@ -1,7 +1,8 @@
 """Read and validate the program's JSON input files."""
 
+import json
 from pathlib import Path
-from typing import TypeVar
+from typing import Any, TypeVar
 
 from pydantic import BaseModel, ConfigDict, TypeAdapter, ValidationError
 
@@ -87,17 +88,19 @@ class Parser(BaseModel):
         """Read a file and validate its content with a pydantic adapter.
 
         Args:
-            path: File to read, decoded as UTF-8.
+            path: File to read, decoded as UTF-8. A leading byte order
+                mark (BOM), as some Windows editors write, is skipped.
             adapter: Adapter describing the expected JSON array.
 
         Returns:
             The validated items.
 
         Raises:
-            InputFileError: If reading or validation fails.
+            InputFileError: If reading or validation fails, or if a JSON
+                object repeats a key.
         """
         try:
-            with open(path, encoding="utf-8") as file:
+            with open(path, encoding="utf-8-sig") as file:
                 text = file.read()
         except FileNotFoundError:
             raise InputFileError(f"{path}: file not found") from None
@@ -110,10 +113,44 @@ class Parser(BaseModel):
         except OSError as error:
             raise InputFileError(f"{path}: {error.strerror}") from None
 
+        self._check_duplicate_keys(path, text)
         try:
             return adapter.validate_json(text)
         except ValidationError as error:
             raise InputFileError(self._describe(path, error)) from None
+
+    @staticmethod
+    def _check_duplicate_keys(path: Path, text: str) -> None:
+        """Reject JSON objects that contain the same key twice.
+
+        Standard JSON parsing keeps only the last value of a repeated key,
+        so the duplicate would disappear silently. Text that is not valid
+        JSON is left for pydantic to report.
+
+        Args:
+            path: File the text comes from, for the error message.
+            text: The file content.
+
+        Raises:
+            InputFileError: If a key repeats, or if the JSON is nested too
+                deeply to read.
+        """
+        def no_duplicates(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+            result: dict[str, Any] = {}
+            for key, value in pairs:
+                if key in result:
+                    raise InputFileError(
+                        f"{path}: key '{key}' appears twice in one object"
+                    )
+                result[key] = value
+            return result
+
+        try:
+            json.loads(text, object_pairs_hook=no_duplicates)
+        except json.JSONDecodeError:
+            pass
+        except RecursionError:
+            raise InputFileError(f"{path}: JSON nested too deeply") from None
 
     @staticmethod
     def _describe(path: Path, error: ValidationError) -> str:
@@ -136,5 +173,7 @@ class Parser(BaseModel):
                     location += f".{part}"
             location = location.lstrip(".")
             prefix = f"{path}: {location}: " if location else f"{path}: "
-            lines.append(prefix + detail["msg"])
+            # Messages from our own validators start with "Value error, ".
+            message = detail["msg"].removeprefix("Value error, ")
+            lines.append(prefix + message)
         return "\n".join(lines)
