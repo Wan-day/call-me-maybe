@@ -168,7 +168,22 @@ def test_not_utf8(tmp_path: Path) -> None:
         parser_for(path).load_prompts()
 
 
-@pytest.mark.parametrize("content", ["", "[{", '[{"prompt": "a"},]'])
+def test_utf8_bom_is_skipped(tmp_path: Path) -> None:
+    """A file saved with a byte order mark still loads."""
+    path = write(tmp_path, '﻿[{"prompt": "hi"}]'.encode("utf-8"))
+    assert [p.prompt for p in parser_for(path).load_prompts()] == ["hi"]
+
+
+@pytest.mark.parametrize(
+    "content",
+    [
+        "",
+        "   \n\t ",
+        "[{",
+        '[{"prompt": "a"},]',
+        '[{"prompt": "a"}] trailing',
+    ],
+)
 def test_invalid_json(tmp_path: Path, content: str) -> None:
     """Malformed JSON is reported as such."""
     with pytest.raises(InputFileError, match="Invalid JSON"):
@@ -179,6 +194,45 @@ def test_top_level_not_a_list(tmp_path: Path) -> None:
     """A JSON object instead of an array is rejected."""
     with pytest.raises(InputFileError, match="valid array"):
         parser_for(write(tmp_path, '{"prompt": "a"}')).load_prompts()
+
+
+def test_duplicate_parameter_key(tmp_path: Path) -> None:
+    """A parameter listed twice in one object is rejected, not dropped."""
+    bad = ADD.replace(
+        '"b": {"type": "number"}', '"a": {"type": "string"}'
+    )
+    with pytest.raises(InputFileError, match="key 'a' appears twice"):
+        parser_for(write(tmp_path, f"[{bad}]")).load_function_definitions()
+
+
+def test_duplicate_top_level_key(tmp_path: Path) -> None:
+    """A repeated key anywhere in the file is rejected."""
+    path = write(tmp_path, '[{"prompt": "a", "prompt": "b"}]')
+    with pytest.raises(InputFileError, match="key 'prompt' appears twice"):
+        parser_for(path).load_prompts()
+
+
+def test_same_key_in_different_objects_is_fine(tmp_path: Path) -> None:
+    """Each object may use the same keys as the others."""
+    path = write(tmp_path, '[{"prompt": "a"}, {"prompt": "b"}]')
+    assert len(parser_for(path).load_prompts()) == 2
+
+
+def test_deeply_nested_json(tmp_path: Path) -> None:
+    """Absurdly deep nesting gives a clear error instead of a crash."""
+    path = write(tmp_path, "[" * 100_000 + "]" * 100_000)
+    with pytest.raises(InputFileError, match="nested too deeply"):
+        parser_for(path).load_prompts()
+
+
+def test_validator_messages_have_no_pydantic_prefix(tmp_path: Path) -> None:
+    """Our own validator messages read cleanly, without "Value error"."""
+    path = write(tmp_path, '[{"prompt": "  "}]')
+    with pytest.raises(InputFileError) as info:
+        parser_for(path).load_prompts()
+    assert str(info.value) == (
+        f"{path}: [0].prompt: must not be empty or only whitespace"
+    )
 
 
 def test_error_message_points_to_the_problem(tmp_path: Path) -> None:
